@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<link rel="apple-touch-icon" href="icon.png">
+    <title>QR Code</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background: #EEEEEE;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 400px;
+            padding: 25px;
+            background: white;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            outline: none;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #qrcode {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #telecharger {
+            display: none;
+        }
+
+        /* Zone scanner */
+
+        #scannerZone {
+            display: none;
+            margin-top: 25px;
+        }
+
+        #reader {
+            width: 100%;
+            margin: auto;
+        }
+
+        .options {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .option {
+            flex: 1;
+            padding: 15px 5px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #f8f8f8;
+            cursor: pointer;
+        }
+
+        .option:active {
+            transform: scale(0.97);
+        }
+
+        .option svg {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 8px;
+        }
+
+        .option p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        #fichierQR {
+            display: none;
+        }
+
+        #resultat {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            word-break: break-word;
+            display: none;
+        }
+
+        #fermerScanner {
+            background: #555;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <div class="container">
+
+        <h1>QR Code</h1>
+
+
+        <!-- Génération -->
+
+        <input
+            type="text"
+            id="texte"
+            placeholder="Entrez un texte ou une URL"
+        >
+        <h4 id ='b'></h4>
+
+        <button id="generer">
+            Générer
+        </button>
+
+
+        <div id="qrcode"></div>
+
+
+        <button id="telecharger">
+            Télécharger
+        </button>
+
+
+        <!-- Bouton Scanner -->
+
+        <button id="scanner">
+            Scanner
+        </button>
+
+
+        <!-- Zone scanner -->
+
+        <div id="scannerZone">
+
+            <h2>Scanner un QR Code</h2>
+
+            <div class="options">
+
+                <!-- Caméra -->
+
+                <div class="option" id="camera">
+
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+
+                    <p>Scanner avec la caméra</p>
+
+                </div>
+
+
+                <!-- Galerie -->
+
+                <div class="option" id="galerie">
+
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+
+                    <p>Code déjà enregistré</p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Lecteur caméra -->
+
+            <div id="reader"></div>
+
+
+            <!-- Sélection d'une image -->
+
+            <input
+                type="file"
+                id="fichierQR"
+                accept="image/*"
+            >
+
+
+            <!-- Résultat -->
+
+            <div id="resultat"></div>
+
+
+            <button id="fermerScanner">
+                Fermer
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- Bibliothèque génération -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+
+    <!-- Bibliothèque scanner -->
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+
+    <script>
+
+        /* =========================
+           GÉNÉRATEUR QR CODE
+        ========================= */
+
+        const texte = document.getElementById("texte");
+
+        const boutonGenerer =
+            document.getElementById("generer");
+
+        const qrcode =
+            document.getElementById("qrcode");
+
+        const telecharger =
+            document.getElementById("telecharger");
+
+
+        boutonGenerer.addEventListener("click", function() {
+
+            const valeur = texte.value.trim();
+
+            if (valeur === "") {
+             let b = document.getElementById('b')
+
+                b.innerHTML=("Écris quelque chose !");
+                b.style.color ='red'
+
+                return;
+            }
+
+
+            qrcode.innerHTML = "";
+
+
+            new QRCode(qrcode, {
+
+                text: valeur,
+
+                width: 200,
+
+                height: 200
+
+            });
+
+
+            telecharger.style.display = "block";
+
+        });
+
+
+        /* =========================
+           TÉLÉCHARGEMENT
+        ========================= */
+
+        telecharger.addEventListener("click", function() {
+
+            const image =
+                qrcode.querySelector("img");
+
+            if (!image) {
+                return;
+            }
+
+
+            const lien =
+                document.createElement("a");
+
+
+            lien.href = image.src;
+
+            lien.download = "qrcode.png";
+
+            lien.click();
+
+        });
+
+
+        /* =========================
+           SCANNER
+        ========================= */
+
+        const boutonScanner =
+            document.getElementById("scanner");
+
+        const scannerZone =
+            document.getElementById("scannerZone");
+
+        const camera =
+            document.getElementById("camera");
+
+        const galerie =
+            document.getElementById("galerie");
+
+        const fichierQR =
+            document.getElementById("fichierQR");
+
+        const resultat =
+            document.getElementById("resultat");
+
+        const fermerScanner =
+            document.getElementById("fermerScanner");
+
+
+        let scannerQR = null;
+
+
+        /* Ouvrir le scanner */
+
+        boutonScanner.addEventListener("click", function() {
+
+            scannerZone.style.display = "block";
+
+            boutonScanner.style.display = "none";
+
+        });
+
+
+        /* =========================
+           SCANNER AVEC CAMÉRA
+        ========================= */
+
+        camera.addEventListener("click", function() {
+
+            if (scannerQR) {
+                return;
+            }
+
+
+            scannerQR =
+                new Html5Qrcode("reader");
+
+
+            scannerQR.start(
+
+                {
+                    facingMode: "environment"
+                },
+
+                {
+                    fps: 10,
+
+                    qrbox: {
+                        width: 250,
+                        height: 250
+                    }
+
+                },
+
+                function(code) {
+
+                    afficherResultat(code);
+
+
+                    scannerQR.stop().then(function() {
+
+                        scannerQR.clear();
+
+                        scannerQR = null;
+
+                    });
+
+                },
+
+                function() {
+
+                    // QR Code non détecté.
+                    // On continue le scan.
+
+                }
+
+            ).catch(function(error) {
+
+                alert(
+                    "Impossible d'utiliser la caméra."
+                );
+
+                scannerQR = null;
+
+            });
+
+        });
+
+
+        /* =========================
+           SCANNER UNE IMAGE
+        ========================= */
+
+        galerie.addEventListener("click", function() {
+
+            fichierQR.click();
+
+        });
+
+
+        fichierQR.addEventListener("change", function() {
+
+            const fichier = this.files[0];
+
+            if (!fichier) {
+                return;
+            }
+
+
+            const lecteur =
+                new Html5Qrcode("reader");
+
+
+            lecteur.scanFile(fichier, true)
+
+                .then(function(code) {
+
+                    afficherResultat(code);
+
+                    lecteur.clear();
+
+                })
+
+                .catch(function(error) {
+
+                    alert(
+                        "Aucun QR Code détecté dans cette image."
+                    );
+
+                    lecteur.clear();
+
+                });
+
+        });
+
+
+        /* =========================
+           AFFICHER LE RÉSULTAT
+        ========================= */
+
+        function afficherResultat(code) {
+
+            resultat.style.display = "block";
+
+            resultat.textContent =
+                "Résultat : " + code;
+
+        }
+
+
+        /* =========================
+           FERMER LE SCANNER
+        ========================= */
+
+        fermerScanner.addEventListener("click", function() {
+
+            if (scannerQR) {
+
+                scannerQR.stop()
+                    .then(function() {
+
+                        scannerQR.clear();
+
+                        scannerQR = null;
+
+                    })
+                    .catch(function() {
+
+                        scannerQR = null;
+
+                    });
+
+            }
+
+
+            scannerZone.style.display = "none";
+
+            boutonScanner.style.display = "block";
+
+            resultat.style.display = "none";
+
+        });
+        if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js");
+}
+
+    </script>
+
+</body>
+
+</html>
