@@ -1,0 +1,17 @@
+{
+    "name": "CODEQR",
+    "short_name": "CODEQR",
+    "description": "Générateur et scanner de QR Codes",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#EEEEEE",
+    "theme_color": "#2563eb",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
