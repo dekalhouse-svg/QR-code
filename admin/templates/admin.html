@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111827">
+    <title>Administration · QR CODE</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Arial,sans-serif;background:#f5f7fb;color:#111827}
+        header{background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 20px}
+        .head{max-width:1150px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:15px}
+        .brand{font-weight:800;color:#111827}
+        .logout{color:#111827;text-decoration:none;font-size:14px;font-weight:700}
+        main{max-width:1150px;margin:auto;padding:28px 20px 50px}
+        h1{margin-bottom:8px}
+        .subtitle{color:#6b7280;margin-bottom:25px}
+        .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:25px}
+        .stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px}
+        .stat small{color:#6b7280;display:block;margin-bottom:8px}
+        .stat strong{font-size:28px}
+        .grid{display:grid;grid-template-columns:1fr 1.3fr;gap:20px}
+        .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px}
+        .card h2{font-size:19px;margin-bottom:16px}
+        label{display:block;font-size:13px;font-weight:700;margin:13px 0 7px}
+        input[type=text],input[type=number],input[type=file]{width:100%;padding:11px;border:1px solid #d1d5db;border-radius:9px}
+        .check{display:flex;align-items:center;gap:8px;margin-top:13px;font-size:13px}
+        .check input{width:auto}
+        button{border:0;border-radius:9px;padding:11px 14px;background:#111827;color:#fff;font-weight:700;cursor:pointer}
+        .upload{width:100%;margin-top:17px}
+        .message{margin-top:12px;font-size:13px}
+        .ad-row{border:1px solid #f1f5f9;border-radius:12px;padding:13px;margin-bottom:10px}
+        .ad-top{display:flex;justify-content:space-between;gap:10px}
+        .ad-name{font-weight:700;overflow:hidden;text-overflow:ellipsis}
+        .badge{font-size:11px;padding:4px 7px;border-radius:20px;background:#dcfce7;color:#166534;white-space:nowrap}
+        .badge.off{background:#f3f4f6;color:#6b7280}
+        .meta{font-size:12px;color:#6b7280;margin:7px 0}
+        .actions{display:flex;gap:7px;flex-wrap:wrap}
+        .secondary{background:#f1f5f9;color:#111827}
+        .danger{background:#fee2e2;color:#b91c1c}
+        @media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+        @media(max-width:500px){.stats{grid-template-columns:1fr 1fr}.stat strong{font-size:22px}.head{align-items:flex-start}}
+    </style>
+</head>
+<body>
+<header>
+    <div class="head">
+        <div>
+            <div class="brand">QR CODE · ADMIN</div>
+            <small>Gestion de l'application</small>
+        </div>
+        <a class="logout" href="/admin/logout">Déconnexion</a>
+    </div>
+</header>
+
+<main>
+    <h1>Tableau de bord</h1>
+    <p class="subtitle">Statistiques, publicités et contrôle de la partie publique.</p>
+
+    <section class="stats">
+        <div class="stat"><small>Visiteurs</small><strong id="visitors">0</strong></div>
+        <div class="stat"><small>QR générés</small><strong id="qrGenerated">0</strong></div>
+        <div class="stat"><small>Publicités actives</small><strong id="activeAds">0</strong></div>
+        <div class="stat"><small>Total publicités</small><strong id="totalAds">0</strong></div>
+    </section>
+
+    <section class="grid">
+        <div class="card">
+            <h2>Ajouter une publicité</h2>
+
+            <label for="adFile">Image ou vidéo</label>
+            <input id="adFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+
+            <label for="targetUrl">Lien à ouvrir quand on visite la publicité</label>
+            <input id="targetUrl" type="text" placeholder="https://exemple.com" inputmode="url" required>
+
+            <label for="durationDays">Durée de la publicité (jours)</label>
+            <input id="durationDays" type="number" min="1" max="3650" value="7">
+
+            <label for="displaySeconds">Durée d'affichage (secondes)</label>
+            <input id="displaySeconds" type="number" min="1" max="120" value="5">
+
+            <label class="check">
+                <input id="active" type="checkbox" checked>
+                Publicité active immédiatement
+            </label>
+
+            <button class="upload" id="uploadBtn">Ajouter la publicité</button>
+            <div class="message" id="message"></div>
+        </div>
+
+        <div class="card">
+            <h2>Publicités</h2>
+            <div id="adsList">Chargement…</div>
+        </div>
+    </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+async function readJson(response) {
+    const text = await response.text();
+    try { return text ? JSON.parse(text) : {}; }
+    catch { return {error: text || "Réponse invalide du serveur."}; }
+}
+
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[char]));
+}
+
+async function loadStats() {
+    const response = await fetch("/api/admin/stats", {cache:"no-store"});
+    if (!response.ok) throw new Error("Impossible de charger les statistiques.");
+    const data = await readJson(response);
+    $("visitors").textContent = data.visitors ?? 0;
+    $("qrGenerated").textContent = data.qr_generated ?? 0;
+    $("activeAds").textContent = data.active_ads ?? 0;
+    $("totalAds").textContent = data.total_ads ?? 0;
+}
+
+async function loadAds() {
+    const response = await fetch("/api/admin/ads", {cache:"no-store"});
+    if (!response.ok) throw new Error("Impossible de charger les publicités.");
+    const ads = await readJson(response);
+    const list = $("adsList");
+
+    if (!Array.isArray(ads) || ads.length === 0) {
+        list.innerHTML = "<p style='color:#6b7280;font-size:13px'>Aucune publicité.</p>";
+        return;
+    }
+
+    list.innerHTML = ads.map(ad => `
+        <div class="ad-row">
+            <div class="ad-top">
+                <div class="ad-name">${escapeHtml(ad.original_name)}</div>
+                <span class="badge ${ad.active ? "" : "off"}">${ad.active ? "Active" : "Inactive"}</span>
+            </div>
+            <div class="meta">
+                ${escapeHtml(ad.media_type)} · ${ad.duration_days} jour(s) ·
+                ${ad.display_seconds} seconde(s) par affichage · ${ad.visits || 0} visite(s)
+                <br><a href="${escapeHtml(ad.target_url || "")}" target="_blank" rel="noopener noreferrer">Lien de destination</a>
+            </div>
+            <div class="actions">
+                <button class="secondary" data-action="target" data-id="${ad.id}">Modifier le lien</button>
+                <button class="secondary" data-action="toggle" data-id="${ad.id}" data-active="${!ad.active}">${ad.active ? "Désactiver" : "Activer"}</button>
+                <button class="secondary" data-action="display" data-id="${ad.id}" data-seconds="${ad.display_seconds}">Durée affichage</button>
+                <button class="danger" data-action="delete" data-id="${ad.id}">Supprimer</button>
+            </div>
+        </div>
+    `).join("");
+}
+
+async function refresh() {
+    const results = await Promise.allSettled([loadStats(), loadAds()]);
+    const failed = results.find(result => result.status === "rejected");
+    if (failed) $("message").textContent = failed.reason?.message || "Erreur de chargement.";
+}
+
+async function updateAd(id, payload, method = "PATCH") {
+    const response = await fetch(`/api/admin/ads/${id}`, {
+        method,
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+    });
+    const data = await readJson(response);
+    if (!response.ok) throw new Error(data.error || "Opération impossible.");
+    await refresh();
+}
+
+$("adsList").addEventListener("click", async event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const id = Number(button.dataset.id);
+    try {
+        if (button.dataset.action === "target") {
+            const value = prompt("Nouveau lien (http:// ou https://) :", "");
+            if (value === null) return;
+            await updateAd(id, {target_url: value.trim()});
+        } else if (button.dataset.action === "toggle") {
+            await updateAd(id, {active: button.dataset.active === "true"});
+        } else if (button.dataset.action === "display") {
+            const value = prompt("Durée d'affichage en secondes (1 à 120) :", button.dataset.seconds);
+            if (value === null) return;
+            await updateAd(id, {display_seconds: Number(value)});
+        } else if (button.dataset.action === "delete") {
+            if (!confirm("Supprimer cette publicité ?")) return;
+            const response = await fetch(`/api/admin/ads/${id}`, {method:"DELETE"});
+            const data = await readJson(response);
+            if (!response.ok) throw new Error(data.error || "Suppression impossible.");
+            await refresh();
+        }
+        $("message").textContent = "Modification enregistrée.";
+    } catch (error) {
+        $("message").textContent = error.message || "Une erreur est survenue.";
+    }
+});
+
+$("uploadBtn").addEventListener("click", async () => {
+    const button = $("uploadBtn");
+    const message = $("message");
+    const file = $("adFile").files[0];
+    const targetUrl = $("targetUrl").value.trim();
+
+    if (!file) { message.textContent = "Choisissez une image ou une vidéo."; return; }
+    if (!targetUrl) { message.textContent = "Ajoutez le lien de destination."; $("targetUrl").focus(); return; }
+    if (!/^https?:\/\//i.test(targetUrl)) {
+        message.textContent = "Le lien doit commencer par http:// ou https://.";
+        $("targetUrl").focus();
+        return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+        message.textContent = "Fichier trop volumineux : maximum 25 Mo.";
+        return;
+    }
+
+    const form = new FormData();
+    form.append("target_url", targetUrl);
+    form.append("file", file);
+    form.append("duration_days", $("durationDays").value);
+    form.append("display_seconds", $("displaySeconds").value);
+    form.append("active", $("active").checked ? "1" : "0");
+
+    button.disabled = true;
+    button.textContent = "•••";
+    button.setAttribute("aria-label", "Ajout de la publicité en cours");
+    message.textContent = "Publication en cours…";
+
+    try {
+        const response = await fetch("/api/admin/ads", {method:"POST", body:form});
+        const data = await readJson(response);
+        if (!response.ok) throw new Error(data.error || `Erreur serveur (${response.status}).`);
+        message.textContent = "Publicité ajoutée avec succès.";
+        $("adFile").value = "";
+        $("targetUrl").value = "";
+        await refresh();
+    } catch (error) {
+        message.textContent = error.message || "Échec de l'ajout. Vérifiez la connexion et réessayez.";
+    } finally {
+        button.disabled = false;
+        button.textContent = "Ajouter la publicité";
+        button.removeAttribute("aria-label");
+    }
+});
+
+refresh();
+setInterval(() => { loadStats().catch(() => {}); loadAds().catch(() => {}); }, 10000);
+</script>
+</body>
+</html>
