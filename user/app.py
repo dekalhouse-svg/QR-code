@@ -16,7 +16,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 ADMIN_API_URL = os.environ.get(
     "ADMIN_API_URL",
-    "http://127.0.0.1:5019",
+    "https://qr-admin-srj2.onrender.com",
 ).rstrip("/")
 INTERNAL_API_KEY = os.environ.get(
     "INTERNAL_API_KEY",
